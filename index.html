@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RespiraCare - Advanced 3D Anatomy Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --brand-green: #22C55E; --brand-green-light: #dcfce7;
+            --brand-dark: #0f172a; --brand-blue: #0ea5e9;
+            --brand-red: #ff4d4d;
+            --red-alert: #ef4444; --yellow-caution: #f59e0b;
+            --bg-color: #f8fafc; --card-bg: #ffffff;
+            --text-main: #1e293b; --text-muted: #64748b;
+            --border-color: #f1f5f9; --nav-bg: #ffffff;
+            --button-bg: #f1f5f9; --check-btn-bg: #ffffff; --check-btn-border: #e2e8f0;
+        }
+
+        .dark-mode {
+            --bg-color: #0f172a; --card-bg: #1e293b;
+            --text-main: #f8fafc; --text-muted: #94a3b8;
+            --border-color: #334155; --nav-bg: #1e293b;
+            --button-bg: #334155; --check-btn-bg: #1e293b; --check-btn-border: #475569;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Nunito', sans-serif; -webkit-tap-highlight-color: transparent; transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
+        body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
+
+        /* --- LOADING SCREEN --- */
+        .loading-screen {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(180deg, #0B1B3D 0%, #061024 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10000; color: white; transition: opacity 0.6s ease;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid rgba(34, 197, 94, 0.2);
+            border-top-color: var(--brand-green); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* --- SPLASH SCREEN --- */
+        .welcome-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(180deg, #0B1B3D 0%, #061024 100%); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; color: white; transition: transform 0.6s cubic-bezier(0.8, 0, 0.2, 1), opacity 0.6s; }
+        .welcome-screen.hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+        .welcome-header { text-align: center; margin-bottom: 20px; }
+        .welcome-logo-text { font-size: 32px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+        .welcome-subtitle { font-size: 14px; color: #94A3B8; margin-top: 5px; }
+        .welcome-hero-image { width: 280px; height: 280px; margin: 30px 0; background: radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, transparent 70%); display: flex; justify-content: center; align-items: center; border-radius: 50%; }
+        .welcome-hero-image i { font-size: 120px; color: var(--brand-red); filter: drop-shadow(0 10px 20px rgba(255, 77, 77, 0.4)); }
+        .welcome-actions { width: 80%; display: flex; flex-direction: column; gap: 15px; }
+        .btn-primary { background-color: var(--brand-green); color: white; border: none; padding: 16px; border-radius: 16px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3); }
+        .btn-outline { background-color: transparent; color: white; border: 1px solid rgba(255,255,255,0.2); padding: 16px; border-radius: 16px; font-size: 16px; font-weight: 700; cursor: pointer; text-align: center; }
+
+        /* --- CUSTOM MODAL --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 10005; opacity: 1; transition: opacity 0.3s ease; }
+        .modal-overlay.hidden { opacity: 0; pointer-events: none; }
+        .modal-content { background: var(--card-bg); width: 90%; max-width: 400px; border-radius: 24px; padding: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); transform: translateY(0); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); color: var(--text-main); }
+        .modal-overlay.hidden .modal-content { transform: translateY(50px); }
+        .modal-input { width: 100%; padding: 16px; border-radius: 12px; border: 2px solid var(--border-color); background: var(--bg-color); color: var(--text-main); font-size: 16px; font-weight: 700; font-family: 'Nunito', sans-serif; margin-bottom: 5px; outline: none; transition: border-color 0.3s; }
+        .modal-input:focus { border-color: var(--brand-green); }
+        .modal-error { color: var(--red-alert); font-size: 13px; font-weight: 700; margin-bottom: 20px; display: none; }
+        .modal-actions { display: flex; gap: 15px; margin-top: 20px; }
+
+        /* --- APP STRUCTURE & STANDARD VIEWS --- */
+        .app-screen { background-color: var(--bg-color); width: 100%; min-height: 100vh; display: flex; flex-direction: column; position: relative; }
+        .app-header { padding: 20px 24px 10px 24px; display: flex; align-items: center; justify-content: space-between; z-index: 2; }
+        .header-greeting { font-size: 22px; font-weight: 800; color: var(--text-main); }
+        .header-sub { font-size: 14px; color: var(--text-muted); font-weight: 600; }
+        .icon-btn { background: var(--button-bg); border: none; color: var(--text-main); width: 40px; height: 40px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .app-content { flex: 1; overflow-y: auto; padding: 10px 24px 100px 24px; width: 100%; max-width: 800px; margin: 0 auto; }
+        .view-panel { display: none; animation: fadeIn 0.4s ease; }
+        .view-panel.active { display: block; }
+        .card { background: var(--card-bg); border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.03); border: 1px solid var(--border-color); }
+        .section-title { font-size: 17px; font-weight: 700; color: var(--text-main); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Dash Elements */
+        .dash-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 24px; }
+        .stat-card { background: var(--card-bg); border-radius: 24px; padding: 20px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 10px 25px rgba(0,0,0,0.03); border: 1px solid var(--border-color); }
+        .stat-title { font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 15px; width: 100%; text-align: left; }
+        .circle-progress { width: 90px; height: 90px; border-radius: 50%; background: conic-gradient(var(--brand-green) 0% 85%, var(--border-color) 85% 100%); display: flex; justify-content: center; align-items: center; margin-bottom: 10px; }
+        .circle-inner { width: 74px; height: 74px; background: var(--card-bg); border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .circle-val { font-size: 24px; font-weight: 800; color: var(--text-main); line-height: 1; }
+        .circle-lbl { font-size: 12px; font-weight: 600; color: var(--brand-green); }
+        .aqi-dash { text-align: center; }
+        .aqi-dash-val { font-size: 32px; font-weight: 800; color: var(--text-main); }
+        .aqi-dash-lbl { font-size: 14px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+        .quick-access-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+        .qa-item { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; cursor: pointer; }
+        .qa-icon-wrap { width: 60px; height: 60px; border-radius: 16px; background: var(--card-bg); border: 1px solid var(--border-color); display: flex; justify-content: center; align-items: center; font-size: 24px; color: var(--text-main); box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
+        .qa-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+
+        .stat-image-card { display: flex; flex-direction: column; gap: 16px; align-items: center; justify-content: center; padding: 20px; }
+        .carousel-image { 
+                width: 100%; 
+                border-radius: 18px; 
+                height: 220px; 
+                object-fit: cover; 
+                background: var(--bg-color); 
+                transition: opacity 0.4s ease-in-out; /* Makes the fade smooth */
+            }
+
+            .fade-out {
+                opacity: 0.3; /* Dims the image right before it swaps */
+            }
+        .carousel-caption { width: 100%; text-align: left; }
+        .carousel-title { font-size: 16px; font-weight: 800; color: var(--text-main); margin-bottom: 8px; }
+        .carousel-text { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+        /* Enhanced Quiz Elements */
+        .check-item-enhanced { margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; }
+        .check-item-enhanced:last-child { border-bottom: none; }
+        .quiz-question { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 800; color: var(--text-main); margin-bottom: 20px; }
+        .question-icon { width: 36px; height: 36px; background: var(--brand-green-light); color: var(--brand-green); border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 16px; flex-shrink: 0; }
+        .quiz-options { display: flex; flex-direction: column; gap: 10px; }
+        .check-btn-opt { background: var(--card-bg); border: 2px solid var(--check-btn-border); color: var(--text-main); padding: 14px 20px; border-radius: 16px; cursor: pointer; font-weight: 700; font-size: 15px; text-align: left; display: flex; align-items: center; gap: 15px; transition: all 0.2s ease; }
+        .check-btn-opt:hover { border-color: var(--brand-green); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1); }
+        .check-btn-opt::before { content: ''; display: block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--text-muted); }
+        .check-btn-opt.selected { border-color: var(--brand-green); background: rgba(34, 197, 94, 0.05); }
+        .check-btn-opt.selected::before { border-color: var(--brand-green); background: var(--brand-green); box-shadow: inset 0 0 0 3px rgba(34, 197, 94, 0.2); }
+
+        /* Routine */
+        .breath-ring-wrapper { position: relative; width: 260px; height: 260px; margin: 40px auto; border-radius: 50%; border: 12px dashed var(--brand-green-light); display: flex; justify-content: center; align-items: center; }
+        .breath-ring-active { position: absolute; top: -12px; left: -12px; right: -12px; bottom: -12px; border-radius: 50%; border: 12px solid var(--brand-green); opacity: 0.8; transition: transform 4s linear; }
+        .breath-center { width: 180px; height: 180px; background: var(--card-bg); border-radius: 50%; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2; }
+        .breath-action-text { font-size: 18px; font-weight: 700; color: var(--text-muted); }
+        .breath-time-val { font-size: 36px; font-weight: 800; color: var(--text-main); line-height: 1; margin-top: 5px; }
+        .routine-instruction { text-align: center; font-size: 15px; font-weight: 600; color: var(--text-muted); margin-bottom: 30px; line-height: 1.6; }
+
+        /* Diseases & Anatomy */
+        .disease-list-item { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px; border: 1px solid var(--border-color); cursor: pointer; }
+        .disease-list-icon { width: 60px; height: 60px; border-radius: 12px; background: var(--button-bg); display: flex; justify-content: center; align-items: center; font-size: 28px; color: var(--text-main); }
+        .disease-list-title { font-size: 16px; font-weight: 800; color: var(--text-main); margin-bottom: 4px; }
+        .disease-list-desc { font-size: 12px; color: var(--text-muted); font-weight: 600; line-height: 1.4; }
+        .compare-header { display: flex; font-size: 14px; font-weight: 700; margin-bottom: 15px; border-bottom: 2px solid var(--border-color); }
+        .compare-tab { flex: 1; text-align: center; padding: 10px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+        .compare-tab.active { color: var(--brand-green); border-bottom: 2px solid var(--brand-green); margin-bottom: -2px; }
+        .anatomy-img { 
+                width: 100%; 
+                height: auto; /* Lets the height scale naturally with the width */
+                max-height: 45vh; /* Keeps it from getting too tall on large screens */
+                object-fit: contain; /* The magic word! Guarantees 100% of the image is always visible */
+                border-radius: 16px; 
+                margin-bottom: 20px; 
+                border: 1px solid var(--border-color); 
+                box-shadow: 0 8px 20px rgba(0,0,0,0.05); 
+                background: var(--bg-color); /* Fills any empty space with your theme color */
+            }
+        .compare-visuals { display: flex; gap: 15px; margin-bottom: 20px; }
+        .compare-box { flex: 1; text-align: center; }
+        .compare-lbl-h { color: var(--brand-green); font-weight: 800; font-size: 14px; margin-bottom: 10px; }
+        .compare-lbl-d { font-weight: 800; font-size: 14px; margin-bottom: 10px; }
+        .compare-desc { font-size: 14px; color: var(--text-muted); font-weight: 600; line-height: 1.6; text-align: left; background: var(--bg-color); padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid var(--border-color); }
+        .contrast-svg-container { 
+            width: 100%; 
+            height: auto; /* Removed the fixed 400px */
+            aspect-ratio: 1 / 1; /* This forces the box to always remain a perfect square as it resizes */
+            max-height: 250px; /* Stops it from getting excessively huge on desktop monitors */
+            background: var(--bg-color); 
+            border-radius: 16px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            position: relative;
+        }
+        .contrast-svg { width: 80%; height: 80%; }
+        .bronchi-normal { stroke: #cbd5e1; stroke-width: 6; fill: none; transition: all 0.3s;}
+        .lung-fill-normal { fill: #bae6fd; transition: all 0.3s; }
+        .bronchi-disease { stroke: #cbd5e1; stroke-width: 6; fill: none; transition: all 0.3s; }
+        .lung-fill-disease { fill: #ff8f8f; transition: all 0.3s; }
+        .disease-overlay { opacity: 0; transition: opacity 0.3s ease; }
+        .show-overlay { opacity: 1; }
+
+        /* AQI */
+        .aqi-large-card { border-radius: 24px; padding: 30px; color: white; margin-bottom: 30px; position: relative; overflow: hidden; }
+        .aqi-safe { background: linear-gradient(135deg, #4ade80, #22c55e); }
+        .aqi-moderate { background: linear-gradient(135deg, #a3e635, #84cc16); }
+        .aqi-dangerous { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+        .aqi-large-val { font-size: 64px; font-weight: 800; line-height: 1; margin-bottom: 10px; }
+        .action-icon-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .action-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+        .action-icon { width: 60px; height: 60px; border-radius: 16px; background: rgba(34, 197, 94, 0.1); color: var(--brand-green); display: flex; justify-content: center; align-items: center; font-size: 24px; }
+        .action-item.danger .action-icon { background: rgba(239, 68, 68, 0.1); color: var(--red-alert); }
+        .action-lbl { font-size: 12px; font-weight: 700; color: var(--text-main); line-height: 1.3; }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: var(--nav-bg); display: flex; justify-content: space-around; padding: 15px 5px 25px 5px; border-top: 1px solid var(--border-color); z-index: 10; box-shadow: 0 -5px 20px rgba(0,0,0,0.02); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: none; color: var(--text-muted); font-size: 11px; font-weight: 700; cursor: pointer; flex: 1; }
+        .nav-item i { font-size: 20px; transition: transform 0.2s; }
+        .nav-item.active { color: var(--brand-green); }
+        .nav-item.active i { transform: translateY(-3px); }
+
+        /* ========================================================= */
+        /* --- ADVANCED 3D VIEWER OVERLAY HUD (PRO UPGRADE) --- */
+        /* ========================================================= */
+        .interactive-3d-overlay { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 30; display: none; flex-direction: column; 
+            background: radial-gradient(circle at center, #0B1B3D 0%, #020617 100%);
+            overflow: hidden; font-family: 'Nunito', sans-serif;
+        }
+        #threejs-canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; touch-action: none; }
+        
+        .hud-glass {
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5); color: white; border-radius: 12px;
+        }
+
+        /* Top Bar */
+        .hud-top { position: absolute; top: 20px; left: 20px; right: 20px; z-index: 10; display: flex; justify-content: space-between; align-items: flex-start; }
+        .hud-title-box { padding: 12px 20px; display: flex; flex-direction: column; gap: 4px; }
+        .hud-title-box span:nth-child(1) { font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 8px; color: var(--brand-red); }
+        .hud-title-box span:nth-child(2) { font-size: 11px; color: #94A3B8; }
+        .hud-close-btn { width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; cursor: pointer; color: white; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.4); backdrop-filter: blur(5px); }
+
+        /* Floating Pro Labels with 3D anchors */
+        .hud-label { 
+            position: absolute; padding: 10px 16px; border-left: 3px solid var(--brand-red); 
+            font-size: 13px; font-weight: 800; pointer-events: auto; z-index: 5; 
+            display: flex; flex-direction: column; white-space: nowrap; 
+            transform: translate(-50%, -50%); opacity: 0.95; letter-spacing: 0.5px; 
+            cursor: pointer;
+        }
+        .hud-label:hover { opacity: 1; }
+        .hud-label span { font-size: 11px; font-weight: 600; color: #cbd5e1; margin-top: 3px; letter-spacing: 0; }
+        
+        /* Bottom Dashboard */
+        .hud-bottom-dash { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 500px; z-index: 10; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .hud-dash-col { display: flex; flex-direction: column; gap: 5px; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 20px; }
+        .hud-dash-col:last-child { border-right: none; padding-right: 0; }
+        .hud-dash-lbl { font-size: 11px; color: #94A3B8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+        .hud-dash-val { font-size: 22px; font-weight: 800; display: flex; align-items: baseline; gap: 5px; }
+        .hud-dash-sub { font-size: 12px; font-weight: 600; }
+        
+        /* Controls */
+        .hud-controls { position: absolute; right: 20px; top: 100px; z-index: 10; display: flex; flex-direction: column; gap: 15px; }
+        .hud-btn { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; backdrop-filter: blur(5px); }
+        .hud-btn.active { border-color: var(--brand-red); color: var(--brand-red); box-shadow: 0 0 15px rgba(255,77,77,0.2); }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .text-muted { color: var(--text-muted); }
+
+       .comparison-img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: contain; /* 'contain' guarantees the image will never be cropped or lose details */
+            padding: 10px; 
+            transition: opacity 0.3s ease; 
+        }
+
+        /* --- ENHANCED LEARN PAGE CSS --- */
+    .interactive-lung-box {
+            background: linear-gradient(145deg, #f1f5f9 0%, #ffffff 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 30px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.03);
+        }
+
+        .dark-mode .interactive-lung-box { background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); }
+
+        .svg-lung-anim { transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1), fill 1.5s ease; transform-origin: top center; }
+        .lung-expanded { transform: scale(1.15); fill: #fecdd3; /* Turns pinkish with oxygen */ }
+
+        .flip-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 20px; }
+
+        .flip-card { background-color: transparent; width: 100%; height: 140px; perspective: 1000px; cursor: pointer; }
+        .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; border-radius: 16px; }
+        .flip-card.is-flipped .flip-card-inner { transform: rotateY(180deg); }
+
+        .flip-card-front, .flip-card-back {
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            border-radius: 16px; padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+        }
+        .flip-card-front { background: var(--card-bg); border: 2px solid var(--border-color); color: var(--text-main); }
+        .flip-card-back { background: var(--brand-green-light); color: #064e3b; transform: rotateY(180deg); border: 2px solid var(--brand-green); }
+        .dark-mode .flip-card-back { background: rgba(34, 197, 94, 0.15); color: var(--brand-green-light); }
+
+        .flip-icon { font-size: 32px; margin-bottom: 10px; }
+        .flip-title { font-size: 16px; font-weight: 800; }
+        .flip-text { font-size: 13px; font-weight: 600; line-height: 1.5; }
+                /* --- ENHANCED LEARN PAGE --- */
+        .learn-hero { text-align: center; margin-bottom: 25px; }
+        .learn-hero-title { font-size: 24px; font-weight: 800; color: var(--text-main); margin-bottom: 5px; }
+        .learn-hero-sub { font-size: 14px; color: var(--text-muted); font-weight: 600; line-height: 1.5; }
+
+        /* Interactive Simulator */
+        .sim-container { background: var(--bg-color); border: 2px solid var(--border-color); border-radius: 20px; padding: 25px 15px; text-align: center; margin-bottom: 30px; }
+        .sim-svg-wrapper { width: 100%; max-width: 200px; height: 220px; margin: 0 auto 20px auto; position: relative; }
+        .sim-lung { fill: #bae6fd; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1), fill 1.2s ease; transform-origin: top center; }
+        .sim-diaphragm { fill: #ef4444; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: center; }
+        .sim-airflow { opacity: 0; transition: opacity 0.5s ease, transform 1.2s ease; fill: #0ea5e9; }
+
+        /* Inhaled States */
+        .is-inhaling .sim-lung { transform: scale(1.15, 1.1); fill: #fecdd3; /* Turns pinkish with oxygen */ }
+        .is-inhaling .sim-diaphragm { transform: translateY(15px) scaleY(0.6); /* Flattens and moves down */ }
+        .is-inhaling .sim-airflow { opacity: 1; transform: translateY(10px); }
+
+        .sim-status-text { font-size: 15px; font-weight: 700; color: var(--brand-blue); min-height: 45px; margin-bottom: 15px; }
+
+        /* Journey Timeline */
+        .timeline { position: relative; padding-left: 30px; margin-top: 10px; margin-bottom: 30px; }
+        .timeline::before { content: ''; position: absolute; left: 14px; top: 0; bottom: 0; width: 2px; background: var(--border-color); }
+        .timeline-item { position: relative; margin-bottom: 25px; }
+        .timeline-item:last-child { margin-bottom: 0; }
+        .timeline-icon { position: absolute; left: -30px; top: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--card-bg); border: 2px solid var(--brand-green); display: flex; justify-content: center; align-items: center; color: var(--brand-green); font-size: 12px; z-index: 2; }
+        .timeline-content { background: var(--card-bg); border: 1px solid var(--border-color); padding: 15px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-left: 15px; }
+        .timeline-title { font-size: 15px; font-weight: 800; color: var(--text-main); margin-bottom: 5px; }
+        .timeline-desc { font-size: 13px; color: var(--text-muted); font-weight: 600; line-height: 1.5; }
+
+        /* --- NEW ENHANCED CHECK UI --- */
+        .quiz-img-container {
+            width: 100%;
+            height: 500px;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            background: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid var(--border-color);
+        }
+        .quiz-img-container img {
+            width: 100%;
+            height: 500px;
+            object-fit: cover;
+        }
+
+        .report-breakdown-section {
+            background: var(--bg-color);
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+        }
+        .report-breakdown-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .report-breakdown-text {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 600;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen" class="loading-screen">
+        <div class="spinner"></div>
+        <div style="font-size: 18px; font-weight: 700;">Initializing RespiraLearn...</div>
+    </div>
+
+    <div id="login-modal-overlay" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 10px; font-size: 22px; font-weight: 800;">Welcome back</h3>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px; font-weight: 600;">Please enter your registration username to proceed.</p>
+            
+            <input type="text" id="username-input" class="modal-input" placeholder="Your Name (Min 3 letters)" autocomplete="off">
+            <div class="modal-error" id="modal-error-msg">Name must be at least 3 characters long.</div>
+            
+            <div class="modal-actions">
+                <button class="btn-outline" style="flex:1; border-color: var(--border-color); color: var(--text-muted);" onclick="closeLoginModal()">Cancel</button>
+                <button class="btn-primary" style="flex:1; justify-content: center;" onclick="submitLogin()">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="welcome-screen" class="welcome-screen">
+        <div class="welcome-header">
+            <div class="welcome-logo-text"><i class="fa-solid fa-lungs" style="color:#22C55E"></i> RespiraLearn</div>
+            <div class="welcome-subtitle">Care for your lungs, Breathe for life.</div>
+        </div>
+        <div class="welcome-hero-image"><i class="fa-solid fa-lungs"></i></div>
+        <div class="welcome-actions">
+            <button class="btn-outline" onclick="openLoginModal()">Login</button>
+        </div>
+    </div>
+
+    <div class="app-screen" id="app-screen">
+        <header class="app-header">
+            <div>
+                <div class="header-greeting" id="user-greeting-node">Good Morning! 👋</div>
+                <div class="header-sub">Take care of your lungs today.</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="icon-btn" onclick="toggleTheme()" title="Toggle Dark Mode"><i class="fa-solid fa-moon" id="theme-icon"></i></button>
+                <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
+            </div>
+        </header>
+
+        <main class="app-content">
+            <div id="view-home" class="view-panel active">
+                <div style="display:flex; justify-content:center; margin-bottom:24px;">
+                    <div class="stat-card stat-image-card" style="max-width:680px; width:100%;">
+                        <div class="stat-title">Lung Anatomy</div>
+                        <img id="home-carousel-image" class="carousel-image" src="oral-cavity.png" alt="Lung Anatomy Image">
+                        <div class="carousel-caption">
+                            <div class="carousel-title" id="home-carousel-title">Oral Cavity</div>
+                            <div class="carousel-text" id="home-carousel-caption">This is the first entry point for air into the respiratory system.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-title">Quick Access</div>
+                <div class="quick-access-grid">
+                    <div class="qa-item" onclick="switchMainGlobalView('check')"><div class="qa-icon-wrap"><i class="fa-solid fa-stethoscope" style="color:#f59e0b;"></i></div><span class="qa-label">Lung<br>Check</span></div>
+                    <div class="qa-item" onclick="switchMainGlobalView('breathe')"><div class="qa-icon-wrap"><i class="fa-solid fa-lungs" style="color:#22C55E;"></i></div><span class="qa-label">Exercises</span></div>
+                    <div class="qa-item" onclick="open3DModel()"><div class="qa-icon-wrap"><i class="fa-solid fa-vr-cardboard" style="color:var(--brand-red);"></i></div><span class="qa-label">3D<br>Anatomy</span></div>
+                    <div class="qa-item" onclick="switchMainGlobalView('diseases')"><div class="qa-icon-wrap" style="color:var(--text-main)"><i class="fa-solid fa-virus"></i></div><span class="qa-label">Diseases</span></div>
+                </div>
+            </div>
+
+           <div id="view-check" class="view-panel">
+                <div class="card">
+                    <div class="check-item-enhanced">
+                        <div class="quiz-question"><div class="question-icon"><i class="fa-solid fa-head-side-cough"></i></div> Do you have a cough today?</div>
+                        <div class="quiz-img-container">
+                            <img src="quiz-cough.jpg" alt="Person coughing">
+                        </div>
+                        <div class="quiz-options">
+                            <button class="check-btn-opt" onclick="logSymptomMetricUI(0, 0, this)">None / Rare</button>
+                            <button class="check-btn-opt" onclick="logSymptomMetricUI(0, 2, this)">Dry / Intermittent</button>
+                            <button class="check-btn-opt" onclick="logSymptomMetricUI(0, 4, this)">Productive / Heavy Mucus</button>
+                        </div>
+                    </div>
+
+                    <div class="check-item-enhanced">
+                        <div class="quiz-question"><div class="question-icon"><i class="fa-solid fa-person-running"></i></div> How easily do you lose your breath?</div>
+                        <div class="quiz-img-container">
+                            <img src="quiz-breath.jpg" alt="Person out of breath">
+                        </div>
+                        <div class="quiz-options">
+                            <button class="check-btn-opt" onclick="logSymptomMetricUI(1, 0, this)">Only on Vigorous Activity</button>
+                            <button class="check-btn-opt" onclick="logSymptomMetricUI(1, 3, this)">Walking at a Normal Pace</button>
+                            <button class="check-btn-opt" onclick="logSymptomMetricUI(1, 5, this)">At Rest / Minimal Effort</button>
+                        </div>
+                    </div>
+
+                    <div class="check-item-enhanced">
+                        <div class="quiz-question"><div class="question-icon"><i class="fa-solid fa-stethoscope"></i></div> Do you hear wheezing in your chest?</div>
+                        <div class="quiz-img-container">
+                            <img src="quiz-chest.jpg" alt="Listening to chest">
+                        </div>
+                        <div class="quiz-options">
+                            <button class="check-btn-opt" onclick="logSymptomMetricUI(2, 0, this)">Breathing sounds clear</button>
+                            <button class="check-btn-opt" onclick="logSymptomMetricUI(2, 3, this)">Mild Wheezing / Tightness</button>
+                            <button class="check-btn-opt" onclick="logSymptomMetricUI(2, 5, this)">Heavy Rattling / Stridor</button>
+                        </div>
+                    </div>
+
+                    <div class="check-item-enhanced" style="border:none; padding-bottom:0;">
+                        <div class="quiz-question"><div class="question-icon"><i class="fa-solid fa-wind"></i></div> Peak Expiratory Flow (Optional)</div>
+                        <div class="quiz-img-container">
+                            <img src="quiz-pef.jpg" alt="Using a Peak Flow Meter">
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input type="number" id="pef-input-field" placeholder="e.g. 420" style="flex:1; padding:15px; border-radius:12px; border:2px solid var(--check-btn-border); background:var(--card-bg); color:var(--text-main); font-weight:700; font-size:16px;">
+                            <span style="font-weight:800; color:var(--text-muted);">L/min</span>
+                        </div>
+                    </div>
+                    <button class="btn-primary" style="width:100%; margin-top:30px;" onclick="executeDiagnostics()">Analyze Biomarkers <i class="fa-solid fa-calculator-medical"></i></button>
+                </div>
+                
+                <div class="card" id="diagnostic-report-card" style="display: none;">
+                    <div class="section-title">Clinical Assessment</div>
+                    
+                    <div id="clinical-status-banner" style="padding:15px; border-radius:12px; text-align:center; font-weight:800; font-size:15px; margin-bottom:20px;"></div>
+                    
+                    <div style="display:flex; justify-content:space-between; font-weight:800; margin-bottom:15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);">
+                        <span>Total Symptom Load:</span><span id="diagnostic-score-badge">0 / 15 Pts</span>
+                    </div>
+
+                    <div id="detailed-summary-output" style="margin-bottom: 20px;"></div>
+
+                    <div style="font-size:15px; font-weight:800; margin-bottom:10px;">Recommended Directives:</div>
+                    <ul id="clinical-directives-list" style="padding-left: 20px; font-size:13px; color:var(--text-muted); font-weight:600; line-height:1.6;"></ul>
+                </div>
+            </div>
+
+            <div id="view-breathe" class="view-panel">
+                <div style="text-align:center; margin-bottom:30px;">
+                    <div style="font-size:24px; font-weight:800; color:var(--text-main);">Deep Breathing</div>
+                    <div style="font-size:16px; font-weight:600; color:var(--text-muted);">4-4-4 Technique</div>
+                </div>
+                <div class="breath-ring-wrapper">
+                    <div class="breath-ring-active" id="visual-breath-ring" style="display:none;"></div>
+                    <div class="breath-center">
+                        <i class="fa-solid fa-lungs breath-icon"></i>
+                        <div class="breath-action-text" id="breathing-circle-node">Ready</div>
+                        <div class="breath-time-val" id="breathing-timer-clock">4s</div>
+                    </div>
+                </div>
+                <div class="routine-instruction" id="routine-instruction-prompt">Inhale for 4 seconds<br>Hold for 4 seconds<br>Exhale for 4 seconds</div>
+                <button class="btn-primary" id="master-breath-trigger" style="width:100%; justify-content:center;" onclick="toggleBreathingRoutine()">Start</button>
+            </div>
+
+           <div id="view-learn" class="view-panel">
+    <div class="section-title">Interactive Explorer</div>
+    
+    <div class="interactive-lung-box">
+        <h4 style="margin-bottom: 5px; color: var(--text-main);">The Breath Engine</h4>
+        <p class="text-muted" style="font-size: 13px; margin-bottom: 20px;">Tap the button to simulate gas exchange.</p>
+        
+        <svg viewBox="0 0 200 180" style="width: 150px; height: 150px; margin-bottom: 20px;">
+            <path d="M100,10 L100,60" stroke="#cbd5e1" stroke-width="12" fill="none" stroke-linecap="round"/>
+            <path d="M100,55 L65,100 M100,55 L135,100" stroke="#cbd5e1" stroke-width="10" fill="none" stroke-linecap="round"/>
+            <path id="anim-lung-left" class="svg-lung-anim" d="M65,90 C30,70 10,120 30,160 C45,190 85,170 85,130 Z" fill="#bae6fd" opacity="0.9" />
+            <path id="anim-lung-right" class="svg-lung-anim" d="M135,90 C170,70 190,120 170,160 C155,190 115,170 115,130 Z" fill="#bae6fd" opacity="0.9" />
+        </svg>
+
+        <button id="learn-breathe-btn" class="btn-primary" style="width: 100%; justify-content: center;" onclick="triggerLearnBreath()">
+            <i class="fa-solid fa-wind" style="margin-right: 8px;"></i> Inhale Oxygen
+        </button>
+    </div>
+
+    <div class="section-title">Tap to Reveal</div>
+    
+    <div class="flip-grid">
+        <div class="flip-card" onclick="this.classList.toggle('is-flipped')">
+            <div class="flip-card-inner">
+                <div class="flip-card-front">
+                    <i class="fa-solid fa-tree flip-icon" style="color: var(--brand-green);"></i>
+                    <div class="flip-title">The "Tree" Inside You</div>
+                    <div class="flip-text" style="color: var(--text-muted); font-size: 11px; margin-top: 5px;">Tap to open</div>
+                </div>
+                <div class="flip-card-back">
+                    <div class="flip-text">Your airways branch out just like an upside-down tree! From the trachea down to microscopic bronchioles.</div>
+                </div>
+            </div>
+        </div>
+
+            <div class="flip-card" onclick="this.classList.toggle('is-flipped')">
+                        <div class="flip-card-inner">
+                            <div class="flip-card-front">
+                                <i class="fa-solid fa-droplet flip-icon" style="color: var(--brand-blue);"></i>
+                                <div class="flip-title">The Tennis Court</div>
+                                <div class="flip-text" style="color: var(--text-muted); font-size: 11px; margin-top: 5px;">Tap to open</div>
+                            </div>
+                            <div class="flip-card-back">
+                                <div class="flip-text">If you flattened out all 600 million alveoli (air sacs) in your lungs, they would cover an entire tennis court!</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flip-card" onclick="this.classList.toggle('is-flipped')">
+                        <div class="flip-card-inner">
+                            <div class="flip-card-front">
+                                <i class="fa-solid fa-shield-cat flip-icon" style="color: var(--brand-red);"></i>
+                                <div class="flip-title">The Mucus Elevator</div>
+                                <div class="flip-text" style="color: var(--text-muted); font-size: 11px; margin-top: 5px;">Tap to open</div>
+                            </div>
+                            <div class="flip-card-back">
+                                <div class="flip-text">Tiny hairs called cilia act as an escalator, sweeping trapped dirt and bacteria up to be coughed out.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-diseases" class="view-panel">
+                <div id="disease-list-view">
+                    <div class="section-title" style="margin-bottom:5px;">Diseases</div>
+                    <p class="text-muted" style="font-size:14px; font-weight:600; margin-bottom:20px;">Learn about common lung diseases.</p>
+                    <div class="disease-list-item" onclick="openDiseaseDetail('asthma')"><div class="disease-list-icon"><i class="fa-solid fa-lungs-virus" style="color:#ef4444"></i></div><div class="disease-list-text"><div class="disease-list-title">Asthma</div><div class="disease-list-desc">Inflamed bronchioles and constricted airways.</div></div><i class="fa-solid fa-chevron-right text-muted"></i></div>
+                    <div class="disease-list-item" onclick="openDiseaseDetail('copd')"><div class="disease-list-icon"><i class="fa-solid fa-smoking" style="color:#f59e0b"></i></div><div class="disease-list-text"><div class="disease-list-title">COPD</div><div class="disease-list-desc">Permanent destruction of alveolar matrix.</div></div><i class="fa-solid fa-chevron-right text-muted"></i></div>
+                    <div class="disease-list-item" onclick="openDiseaseDetail('pneumonia')"><div class="disease-list-icon"><i class="fa-solid fa-biohazard" style="color:#3b82f6"></i></div><div class="disease-list-text"><div class="disease-list-title">Pneumonia</div><div class="disease-list-desc">Alveoli and lower lobes filled with fluid.</div></div><i class="fa-solid fa-chevron-right text-muted"></i></div>
+                </div>
+                
+                <div id="disease-detail-view" style="display:none;">
+                    <div style="display:flex; align-items:center; gap:15px; margin-bottom:20px;">
+                        <button class="icon-btn" onclick="closeDiseaseDetail()"><i class="fa-solid fa-arrow-left"></i></button>
+                        <div style="font-size:20px; font-weight:800;" id="detail-title">Asthma</div>
+                    </div>
+                    
+                    <div class="compare-header">
+                        <div class="compare-tab active" id="tab-overview" onclick="switchDiseaseTab('overview')">Overview</div>
+                        <div class="compare-tab" id="tab-comparison" onclick="switchDiseaseTab('comparison')">Comparison</div>
+                    </div>
+                    
+                    <div id="content-overview">
+                        <img src="" alt="Disease Overview" class="anatomy-img" id="disease-overview-img">
+                        <div class="compare-desc" id="overview-d-desc"></div>
+                    </div>
+
+                    <div id="content-comparison" style="display: none;">
+                        <div class="compare-visuals">
+                            <div class="compare-box">
+                                <div class="compare-lbl-h">Healthy Lung</div>
+                                <div class="contrast-svg-container" style="background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34,197,94,0.2);">
+                                    
+                                    <img src="nor.jpg" alt="Healthy Lung" class="comparison-img" id="healthy-lung-img">
+                                    
+                                </div>
+                            </div>
+                            <div class="compare-box">
+                                <div class="compare-lbl-d" id="detail-lbl-d" style="color:var(--red-alert);">Diseased Lung</div>
+                                <div class="contrast-svg-container" id="detail-box-d" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239,68,68,0.2);">
+                                    
+                                    <img src="YOUR_DEFAULT_DISEASED_LUNG.png" alt="Diseased Lung" class="comparison-img" id="diseased-lung-img">
+                                    
+                                </div>
+                            </div>
+                        </div>
+                        <div class="compare-desc" id="detail-d-desc"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-pollution" class="view-panel">
+                <div class="location-header" style="text-align:center; font-weight:700; margin-bottom:20px; color:var(--text-muted);"><i class="fa-solid fa-location-dot" style="color:var(--brand-green)"></i> Sagay City, Philippines</div>
+                <div class="aqi-large-card aqi-moderate" id="aqi-panel-wrap">
+                    <div style="font-size:16px; font-weight:700; margin-bottom:10px;">Air Quality Index</div>
+                    <div class="aqi-large-val" id="aqi-index-val">68</div>
+                    <div style="font-size:20px; font-weight:700; margin-bottom:10px;" id="aqi-status-text">Moderate</div>
+                    <div style="font-size:14px; font-weight:600; opacity:0.9; max-width:70%; line-height:1.4;" id="aqi-warning-message">Fair day. Sensitive groups should limit activities.</div>
+                </div>
+                <div class="section-title">What you can do</div>
+                <div class="action-icon-grid" id="action-grid-output" style="margin-bottom: 30px;"></div>
+                <div class="section-title">Simulate Environment</div>
+                <div style="display:flex; gap:10px;">
+                     <button class="btn-outline" style="color:var(--text-main); border-color:var(--brand-green); flex:1;" onclick="simulateAQI('safe')">Safe</button>
+                     <button class="btn-outline" style="color:var(--text-main); border-color:var(--yellow-caution); flex:1;" onclick="simulateAQI('moderate')">Moderate</button>
+                     <button class="btn-outline" style="color:var(--text-main); border-color:var(--red-alert); flex:1;" onclick="simulateAQI('dangerous')">Dangerous</button>
+                </div>
+            </div>
+        </main>
+
+        <div class="interactive-3d-overlay" id="interactive-3d-overlay">
+            <div id="threejs-canvas-container"></div>
+            
+            <svg id="connector-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none;"></svg>
+            
+            <div class="hud-top">
+                <div class="hud-glass hud-title-box">
+                    <span><i class="fa-solid fa-vr-cardboard"></i> Anatomy Explorer Pro</span>
+                    <span>Drag to rotate • Pinch to zoom</span>
+                </div>
+                <button class="hud-close-btn" onclick="close3DModel()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="hud-glass hud-label" data-key="oral-cavity" data-x="0" data-y="6.0" data-z="0.6" style="top: 8%; left: 55%;" onclick="openAnatomyInfo('oral-cavity')">Oral Cavity (Mouth)<span>Air Intake / Exhaust</span></div>
+            <div class="hud-glass hud-label" data-key="nasal-pharynx" data-x="0" data-y="5.0" data-z="0" style="top: 18%; left: 75%;" onclick="openAnatomyInfo('nasal-pharynx')">Nasal Cavity & Pharynx</div>
+            <div class="hud-glass hud-label" data-key="larynx-trachea" data-x="0" data-y="3.5" data-z="0" style="top: 28%; left: 25%;" onclick="openAnatomyInfo('larynx-trachea')">Larynx and Trachea:<span>Detailed Cartilage Rings</span></div>
+            <div class="hud-glass hud-label" data-key="lobe-segments" data-x="-1.6" data-y="0.2" data-z="0" style="top: 42%; left: 18%;" onclick="openAnatomyInfo('lobe-segments')">Lobe Segments<span>Ghostly X-Ray Glow</span></div>
+            <div class="hud-glass hud-label" data-key="vascular-tree" data-x="0" data-y="1.7" data-z="0.1" style="top: 36%; left: 82%;" onclick="openAnatomyInfo('vascular-tree')">Detailed Vascular Tree:<span>Pulmonary Arteries & Veins</span></div>
+            <div class="hud-glass hud-label" data-key="bronchial-tree" data-x="1.0" data-y="1.0" data-z="0" style="top: 52%; left: 85%;" onclick="openAnatomyInfo('bronchial-tree')">Intricate<span>Bronchial Tree</span></div>
+            <div class="hud-glass hud-label" data-key="alveoli-sac" data-x="1.5" data-y="-0.8" data-z="0" style="top: 72%; left: 85%;" onclick="openAnatomyInfo('alveoli-sac')">Alveoli Sac Clusters<span>(inset)</span></div>
+
+            <div class="hud-controls">
+                <button class="hud-btn active" id="btn-toggle-blood" onclick="toggleBloodVessels()">
+                    <i class="fa-solid fa-droplet"></i><span>Vessels</span>
+                </button>
+            </div>
+
+        </div>
+
+        <nav class="bottom-nav">
+            <button class="nav-item active" id="nav-home" onclick="switchMainGlobalView('home')"><i class="fa-solid fa-house"></i><span>Home</span></button>
+            <button class="nav-item" id="nav-check" onclick="switchMainGlobalView('check')"><i class="fa-solid fa-stethoscope"></i><span>Check</span></button>
+            <button class="nav-item" id="nav-breathe" onclick="switchMainGlobalView('breathe')"><i class="fa-regular fa-circle-play"></i><span>Exercises</span></button>
+            <button class="nav-item" id="nav-diseases" onclick="switchMainGlobalView('diseases')"><i class="fa-solid fa-lungs"></i><span>Diseases</span></button>
+            <button class="nav-item" id="nav-pollution" onclick="switchMainGlobalView('pollution')"><i class="fa-solid fa-smog"></i><span>Pollution</span></button>
+        </nav>
+    </div>
+
+        <div id="anatomy-image-modal" class="modal-overlay hidden" style="z-index: 10050;">
+        <div class="modal-content" style="max-width: 500px; text-align: center; border: 1px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px);">
+            <h3 id="anatomy-image-title" style="margin-bottom: 15px; font-size: 20px; font-weight: 800; color: white;">Title Here</h3>
+            
+            <img id="anatomy-image-display" src="" alt="Anatomy Part" style="width: 100%; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(255, 255, 255, 0.2);">
+            <p id="anatomy-image-desc" style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px; text-align:left;"></p>
+            <button class="btn-primary" style="width: 100%; justify-content: center; background-color: var(--brand-red);" onclick="closeAnatomyImage()">Close</button>
+        </div>
+    </div>
+
+<script>
+    // --- 0. STARTUP LOADING SEQUENCE ---
+    document.addEventListener("DOMContentLoaded", () => {
+        setTimeout(() => {
+            const loader = document.getElementById('loading-screen');
+            loader.style.opacity = '0';
+            setTimeout(() => loader.style.display = 'none', 600);
+        }, 1500); 
+    });
+
+    // --- 1. CORE LOGIC & CUSTOM LOGIN MODAL ---
+    let isDarkMode = false;
+    let currentGlobalLungScore = 85; 
+    
+    function startApp(username) {
+        const welcome = document.getElementById('welcome-screen');
+        welcome.classList.add('hidden');
+        setTimeout(() => { welcome.style.display = 'none'; }, 600); 
+        document.getElementById('user-greeting-node').innerHTML = `Good Morning, ${username}! 👋`;
+        simulateAQI('moderate'); 
+        startHomeCarousel();
+    }
+
+    function openLoginModal() {
+        document.getElementById('login-modal-overlay').classList.remove('hidden');
+        document.getElementById('modal-error-msg').style.display = 'none';
+        document.getElementById('username-input').value = '';
+        setTimeout(() => { document.getElementById('username-input').focus(); }, 100);
+    }
+
+    let homeCarouselIndex = 0;
+    let homeCarouselInterval = null;
+
+    const homeCarouselItems = [
+        {
+            title: 'Oral Cavity',
+            caption: 'This is the first entry point for air into the respiratory system.',
+            image: 'oral-cavity.png'
+        },
+        {
+            title: 'Nasal Cavity & Pharynx',
+            caption: 'This airway region filters and warms air before it reaches the lungs.',
+            image: 'nasal-pharynx.png'
+        },
+        {
+            title: 'Larynx & Trachea',
+            caption: 'The larynx protects the airway while the trachea directs air into the lungs.',
+            image: 'larynx-trachea.png'
+        },
+        {
+            title: 'Bronchial Tree',
+            caption: 'The bronchial tree branches into smaller airways delivering air deeply into the lungs.',
+            image: 'bronchial-tree.png'
+        },
+        {
+            title: 'Alveoli Sac Clusters',
+            caption: 'Tiny air sacs where oxygen enters the blood and carbon dioxide leaves it.',
+            image: 'alveoli-sac.png'
+        }
+    ];
+
+    function updateHomeCarousel() {
+        const item = homeCarouselItems[homeCarouselIndex];
+        const imageNode = document.getElementById('home-carousel-image');
+        
+        // Add the fade-out class
+        imageNode.classList.add('fade-out');
+        
+        // Wait for the fade out to finish (400ms), then swap the image and fade back in
+        setTimeout(() => {
+            document.getElementById('home-carousel-title').innerText = item.title;
+            document.getElementById('home-carousel-caption').innerText = item.caption;
+            imageNode.src = item.image;
+            imageNode.alt = item.title;
+            
+            // Remove the fade-out class so it fades back in
+            imageNode.classList.remove('fade-out');
+            
+            // Advance the index for the next round
+            homeCarouselIndex = (homeCarouselIndex + 1) % homeCarouselItems.length;
+        }, 400); 
+    }
+
+    function startHomeCarousel() {
+        updateHomeCarousel();
+        if (homeCarouselInterval) clearInterval(homeCarouselInterval);
+        homeCarouselInterval = setInterval(updateHomeCarousel, 2000);
+    }
+
+    function closeLoginModal() {
+        document.getElementById('login-modal-overlay').classList.add('hidden');
+    }
+
+    function submitLogin() {
+        const user = document.getElementById('username-input').value.trim();
+        if (user.length >= 3) {
+            closeLoginModal();
+            startApp(user);
+        } else {
+            document.getElementById('modal-error-msg').style.display = 'block';
+        }
+    }
+
+    // Submit on Enter Key
+    document.getElementById('username-input').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') submitLogin();
+    });
+
+    function toggleTheme() {
+        const screen = document.getElementById("app-screen");
+        const icon = document.getElementById("theme-icon");
+        isDarkMode = !isDarkMode;
+        if(isDarkMode) { screen.classList.add("dark-mode"); icon.className = "fa-solid fa-sun"; } 
+        else { screen.classList.remove("dark-mode"); icon.className = "fa-solid fa-moon"; }
+    }
+
+    function switchMainGlobalView(viewKey) {
+        document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+        document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+        const panel = document.getElementById(`view-${viewKey}`); if(panel) panel.classList.add("active");
+        const navItem = document.getElementById(`nav-${viewKey}`); if(navItem) navItem.classList.add("active");
+        if (viewKey !== 'breathe' && isRoutineRunning) stopBreathingRoutine();
+        if (viewKey === 'diseases') closeDiseaseDetail();
+    }
+
+    // --- 2. LUNG CHECK ---
+    let clinicalSymptomMatrix = [null, null, null]; 
+    function logSymptomMetricUI(questionIdx, weightValue, buttonElement) {
+        clinicalSymptomMatrix[questionIdx] = weightValue;
+        const siblingButtons = buttonElement.parentElement.querySelectorAll('.check-btn-opt');
+        siblingButtons.forEach(btn => btn.classList.remove("selected"));
+        buttonElement.classList.add("selected");
+    }
+
+   function executeDiagnostics() {
+            if (clinicalSymptomMatrix.includes(null)) { alert("Please complete all questions before analyzing."); return; }
+            
+            const reportCard = document.getElementById("diagnostic-report-card");
+            const statusBanner = document.getElementById("clinical-status-banner");
+            const directivesList = document.getElementById("clinical-directives-list");
+            const detailedSummary = document.getElementById("detailed-summary-output");
+            const pefInput = document.getElementById("pef-input-field").value;
+
+            let computedSymptomLoad = clinicalSymptomMatrix.reduce((t, c) => t + c, 0);
+            let pefNumeric = pefInput ? parseInt(pefInput) : 450; 
+            let pefPercentage = (pefNumeric / 450) * 100;
+            
+            currentGlobalLungScore = Math.max(10, 100 - (computedSymptomLoad * 5)); 
+            
+            document.getElementById("diagnostic-score-badge").innerText = `${computedSymptomLoad} / 15 Pts`;
+            
+            const hVal = document.getElementById("home-lung-val");
+            const hudVal = document.getElementById("hud-lung-val");
+            if(hVal) hVal.innerText = currentGlobalLungScore;
+            if(hudVal) hudVal.innerText = currentGlobalLungScore;
+            
+            reportCard.style.display = "block"; 
+            directivesList.innerHTML = ""; 
+            let summaryHTML = "";
+
+            // 1. Analyze Cough (clinicalSymptomMatrix[0])
+            let coughScore = clinicalSymptomMatrix[0];
+            summaryHTML += `<div class="report-breakdown-section">
+                <div class="report-breakdown-title"><i class="fa-solid fa-head-side-cough" style="color:var(--brand-blue)"></i> Airway Clearance</div>
+                <div class="report-breakdown-text">`;
+            if (coughScore === 0) summaryHTML += `Your cough reflex is nominal. This indicates that your upper airways are currently clear of significant irritants or excess mucus accumulation.`;
+            else if (coughScore === 2) summaryHTML += `You are experiencing a dry, intermittent cough. This is commonly caused by environmental allergens, air pollution, or mild inflammation in the upper respiratory tract. Stay hydrated to soothe the throat.`;
+            else summaryHTML += `You are experiencing a productive, heavy cough. This indicates that your body is actively trying to expel excess mucus, which could be a sign of a lower respiratory infection (like bronchitis) or an exacerbation of an underlying condition.`;
+            summaryHTML += `</div></div>`;
+
+            // 2. Analyze Dyspnea (clinicalSymptomMatrix[1])
+            let breathScore = clinicalSymptomMatrix[1];
+            summaryHTML += `<div class="report-breakdown-section">
+                <div class="report-breakdown-title"><i class="fa-solid fa-person-running" style="color:var(--brand-green)"></i> Oxygenation & Exertion</div>
+                <div class="report-breakdown-text">`;
+            if (breathScore === 0) summaryHTML += `Your oxygen processing is highly efficient. You only experience breathlessness during vigorous activity, which is a normal, healthy physiological response.`;
+            else if (breathScore === 3) summaryHTML += `You are losing your breath at a normal walking pace. This suggests mild to moderate airway resistance, meaning your lungs are having to work harder to distribute oxygen to your blood.`;
+            else summaryHTML += `Experiencing shortness of breath at rest is a critical clinical marker. It indicates severely restricted airflow or compromised gas exchange in the alveoli.`;
+            summaryHTML += `</div></div>`;
+
+            // 3. Analyze Auscultation (clinicalSymptomMatrix[2])
+            let airwayScore = clinicalSymptomMatrix[2];
+            summaryHTML += `<div class="report-breakdown-section">
+                <div class="report-breakdown-title"><i class="fa-solid fa-stethoscope" style="color:var(--yellow-caution)"></i> Bronchial Resistance</div>
+                <div class="report-breakdown-text">`;
+            if (airwayScore === 0) summaryHTML += `No wheezing or rattling detected. Your bronchial tubes are open, allowing for smooth, unobstructed laminar airflow.`;
+            else if (airwayScore === 3) summaryHTML += `Mild wheezing indicates slight bronchoconstriction (narrowing of the airways). This is often triggered by asthma, weather changes, or airborne particulates.`;
+            else summaryHTML += `Heavy rattling or stridor suggests significant fluid buildup or severe narrowing in the primary bronchi. Immediate attention is required to open the airways.`;
+            summaryHTML += `</div></div>`;
+
+            detailedSummary.innerHTML = summaryHTML;
+
+            // Set Status Zones and Directives
+            if (computedSymptomLoad <= 3 && pefPercentage >= 80) {
+                statusBanner.style.backgroundColor = "rgba(34, 197, 94, 0.15)"; 
+                statusBanner.style.color = "var(--brand-green)";
+                statusBanner.innerText = "Stable / Green Zone";
+                directivesList.innerHTML += `<li>Pulmonary function is normal. Maintain aerobic routines.</li>`;
+                directivesList.innerHTML += `<li>Try the 4-4-4 deep breathing exercise today to maintain elasticity.</li>`;
+            } else if (computedSymptomLoad <= 7 && pefPercentage >= 60) {
+                statusBanner.style.backgroundColor = "rgba(245, 158, 11, 0.15)"; 
+                statusBanner.style.color = "var(--yellow-caution)";
+                statusBanner.innerText = "Cautionary / Yellow Zone";
+                directivesList.innerHTML += `<li>Airway resistance shifts observed. Increase fluid intake to thin mucus.</li>`;
+                directivesList.innerHTML += `<li>Avoid strenuous outdoor exercise today, especially if air quality is poor.</li>`;
+            } else {
+                statusBanner.style.backgroundColor = "rgba(239, 68, 68, 0.15)"; 
+                statusBanner.style.color = "var(--red-alert)";
+                statusBanner.innerText = "Critical / Red Action Zone";
+                directivesList.innerHTML += `<li style="color:var(--red-alert);">Significant respiratory deviations recorded.</li>`;
+                directivesList.innerHTML += `<li style="color:var(--red-alert);">Follow your doctor's emergency action plan (e.g., rescue inhaler) and seek medical input.</li>`;
+            }
+        }
+    // --- 3. BREATHE ROUTINE ---
+    let breathIntervalId = null; let isRoutineRunning = false;
+    function toggleBreathingRoutine() { isRoutineRunning ? stopBreathingRoutine() : startBreathingRoutine(); }
+    function startBreathingRoutine() {
+        isRoutineRunning = true; document.getElementById("master-breath-trigger").innerText = "Stop"; document.getElementById("visual-breath-ring").style.display = "block";
+        const cText = document.getElementById("breathing-circle-node"), clock = document.getElementById("breathing-timer-clock"), guide = document.getElementById("routine-instruction-prompt");
+        let t = 0;
+        breathIntervalId = setInterval(() => {
+            let s = t % 12; let phaseTimeLeft = 4 - (t % 4); 
+            if(s < 4) { cText.innerText = "Inhale"; guide.innerText = "Breathe in slowly..."; } 
+            else if (s < 8) { cText.innerText = "Hold"; guide.innerText = "Hold your breath..."; } 
+            else { cText.innerText = "Exhale"; guide.innerText = "Breathe out gently..."; }
+            clock.innerText = phaseTimeLeft + "s"; t++;
+        }, 1000);
+    }
+    function stopBreathingRoutine() { 
+        isRoutineRunning = false; clearInterval(breathIntervalId); 
+        document.getElementById("master-breath-trigger").innerText = "Start"; document.getElementById("visual-breath-ring").style.display = "none";
+        document.getElementById("breathing-circle-node").innerText = "Ready"; document.getElementById("breathing-timer-clock").innerText = "4s"; 
+        document.getElementById("routine-instruction-prompt").innerHTML = "Inhale for 4 seconds<br>Hold for 4 seconds<br>Exhale for 4 seconds";
+    }
+
+    // --- 4. DISEASES LOGIC ---
+    function switchDiseaseTab(tab) {
+        document.getElementById('tab-overview').classList.remove('active');
+        document.getElementById('tab-comparison').classList.remove('active');
+        document.getElementById('content-overview').style.display = 'none';
+        document.getElementById('content-comparison').style.display = 'none';
+
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        document.getElementById(`content-${tab}`).style.display = 'block';
+    }
+
+    function openDiseaseDetail(disease) {
+        document.getElementById('disease-list-view').style.display = 'none'; 
+        document.getElementById('disease-detail-view').style.display = 'block';
+        
+        // Reset tabs to Overview by default
+        switchDiseaseTab('overview');
+
+        const title = document.getElementById('detail-title');
+        const descBox = document.getElementById('detail-d-desc');
+        const overviewDesc = document.getElementById('overview-d-desc');
+        const lblD = document.getElementById('detail-lbl-d');
+        const dBox = document.getElementById('detail-box-d');
+        const overviewImg = document.getElementById('disease-overview-img');
+        
+        // Target your new comparison image
+        const diseasedImg = document.getElementById('diseased-lung-img');
+
+        // Default red styling for the diseased box
+        lblD.style.color = "var(--red-alert)"; 
+        dBox.style.borderColor = "rgba(239,68,68,0.2)"; 
+        dBox.style.background = "rgba(239, 68, 68, 0.05)";
+
+        if(disease === 'asthma') {
+            title.innerText = "Asthma"; 
+            const text = "Airways become inflamed and narrowed. Extra mucus blocks passage causing wheezing.";
+            descBox.innerText = text; overviewDesc.innerText = text;
+            overviewImg.src = "asma.png";
+            
+            // PUT YOUR ASTHMA COMPARISON IMAGE HERE
+            diseasedImg.src = "asma.png"; 
+
+        } else if (disease === 'copd') {
+            title.innerText = "COPD"; 
+            const text = "Permanent destruction of alveolar matrix. Smoke and chemicals break down lung elasticity.";
+            descBox.innerText = text; overviewDesc.innerText = text;
+            overviewImg.src = "copd.jpg";
+            lblD.style.color = "#f59e0b"; 
+            dBox.style.borderColor = "rgba(245,158,11,0.2)"; 
+            dBox.style.background = "rgba(245,158,11,0.05)";
+            
+            // PUT YOUR COPD COMPARISON IMAGE HERE
+            diseasedImg.src = "copd.jpg"; 
+
+        } else if (disease === 'pneumonia') {
+            title.innerText = "Pneumonia"; 
+            const text = "Bacterial or viral infection causes the alveoli and lower lobes to fill with fluid/pus.";
+            descBox.innerText = text; overviewDesc.innerText = text;
+            overviewImg.src = "pneumonia.png";
+            lblD.style.color = "#3b82f6"; 
+            dBox.style.borderColor = "rgba(59,130,246,0.2)"; 
+            dBox.style.background = "rgba(59,130,246,0.05)";
+            
+            // PUT YOUR PNEUMONIA COMPARISON IMAGE HERE
+            diseasedImg.src = "pneumonia.png"; 
+        }
+    }
+    function closeDiseaseDetail() { document.getElementById('disease-list-view').style.display = 'block'; document.getElementById('disease-detail-view').style.display = 'none'; }
+
+        // --- 5. POLLUTION / AQI ---
+    function simulateAQI(levelKey) {
+        const panel = document.getElementById("aqi-panel-wrap");
+        const val = document.getElementById("aqi-index-val");
+        const status = document.getElementById("aqi-status-text");
+        const msg = document.getElementById("aqi-warning-message");
+        const grid = document.getElementById("action-grid-output");
+        
+        const hVal = document.getElementById("home-aqi-val");
+        const hLbl = document.getElementById("home-aqi-lbl");
+        const hudVal = document.getElementById("hud-aqi-val");
+        const hudLbl = document.getElementById("hud-aqi-lbl");
+
+        panel.className = "aqi-large-card"; 
+        let actionsHTML = "";
+
+        if (levelKey === 'safe') {
+            panel.classList.add("aqi-safe");
+            if(val) val.innerText = "18"; 
+            if(status) status.innerText = "Good"; 
+            
+            // The ?. operator prevents the crash if these elements don't exist
+            if(hVal) hVal.innerText = "18"; 
+            if(hLbl) hLbl.innerText = "Good"; 
+            if(hudVal) { hudVal.innerText = "18"; hudVal.style.color = "var(--brand-green)"; }
+            if(hudLbl) hudLbl.innerText = "Good"; 
+            
+            if(msg) msg.innerText = "Air quality is considered satisfactory.";
+            actionsHTML = `<div class="action-item"><div class="action-icon"><i class="fa-solid fa-child-reaching"></i></div><div class="action-lbl">Enjoy<br>Outdoors</div></div><div class="action-item"><div class="action-icon"><i class="fa-solid fa-window-restore"></i></div><div class="action-lbl">Open<br>Windows</div></div>`;
+        
+        } else if (levelKey === 'moderate') {
+            panel.classList.add("aqi-moderate");
+            if(val) val.innerText = "68"; 
+            if(status) status.innerText = "Moderate"; 
+            
+            if(hVal) hVal.innerText = "68"; 
+            if(hLbl) hLbl.innerText = "Moderate"; 
+            if(hudVal) { hudVal.innerText = "68"; hudVal.style.color = "var(--yellow-caution)"; }
+            if(hudLbl) hudLbl.innerText = "Moderate"; 
+            
+            if(msg) msg.innerText = "It's a fair day. Sensitive groups should limit outdoor activities.";
+            actionsHTML = `<div class="action-item"><div class="action-icon"><i class="fa-solid fa-mask"></i></div><div class="action-lbl">Wear<br>Mask</div></div><div class="action-item"><div class="action-icon"><i class="fa-solid fa-bottle-water"></i></div><div class="action-lbl">Stay<br>Hydrated</div></div><div class="action-item danger"><div class="action-icon"><i class="fa-solid fa-car"></i></div><div class="action-lbl">Avoid High<br>Traffic Areas</div></div>`;
+        
+        } else {
+            panel.classList.add("aqi-dangerous");
+            if(val) val.innerText = "165"; 
+            if(status) status.innerText = "Unhealthy"; 
+            
+            if(hVal) hVal.innerText = "165"; 
+            if(hLbl) hLbl.innerText = "Unhealthy"; 
+            if(hudVal) { hudVal.innerText = "165"; hudVal.style.color = "var(--red-alert)"; }
+            if(hudLbl) hudLbl.innerText = "Unhealthy"; 
+            
+            if(msg) msg.innerText = "Health alert: Everyone may experience more serious health effects.";
+            actionsHTML = `<div class="action-item danger"><div class="action-icon"><i class="fa-solid fa-door-closed"></i></div><div class="action-lbl">Stay<br>Indoors</div></div><div class="action-item"><div class="action-icon"><i class="fa-solid fa-mask-ventilator"></i></div><div class="action-lbl">Use N95<br>Mask</div></div><div class="action-item"><div class="action-icon"><i class="fa-solid fa-fan"></i></div><div class="action-lbl">Run Air<br>Purifier</div></div>`;
+        }
+        
+        if(grid) grid.innerHTML = actionsHTML;
+    }
+        // =========================================================================
+    // --- 6. ADVANCED PROCEDURAL 3D ENGINE (PRO UPGRADE) ---
+    // =========================================================================
+    let is3DInitialized = false;
+    let threeScene, threeCamera, threeRenderer, systemGroup, lungGroup, bloodGroup;
+    let particleSystem, particleGeo;
+    let animationId;
+    let connectorLines = []; 
+
+    function initThreeJS() {
+        if(is3DInitialized) return;
+        const container = document.getElementById('threejs-canvas-container');
+        threeScene = new THREE.Scene();
+        threeCamera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+        threeCamera.position.set(0, 1.5, 12);
+
+        threeRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        threeRenderer.setSize(container.clientWidth, container.clientHeight);
+        threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
+        container.appendChild(threeRenderer.domElement);
+
+        threeScene.add(new THREE.AmbientLight(0xffffff, 0.4));
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.8); mainLight.position.set(5, 10, 8); threeScene.add(mainLight);
+        const backLight = new THREE.PointLight(0xff5555, 4.0, 20); backLight.position.set(-5, -2, -6); threeScene.add(backLight);
+
+        // --- Background Space Dust/Stars ---
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = new Float32Array(500 * 3);
+        for(let i=0; i<1500; i++) { starPos[i] = (Math.random() - 0.5) * 40; }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({color: 0xffffff, size: 0.05, transparent: true, opacity: 0.4});
+        threeScene.add(new THREE.Points(starGeo, starMat));
+
+        systemGroup = new THREE.Group(); lungGroup = new THREE.Group(); bloodGroup = new THREE.Group(); 
+
+        const glowingLungMat = new THREE.MeshPhysicalMaterial({
+            color: 0xff6666, emissive: 0xcc0000, emissiveIntensity: 0.5,
+            roughness: 0.2, metalness: 0.1, transmission: 0.8, thickness: 2.0,
+            transparent: true, opacity: 0.65, side: THREE.DoubleSide, depthWrite: false     
+        });
+
+        const bodyShellMat = new THREE.MeshPhongMaterial({
+            color: 0xff2244, emissive: 0xaa0022, emissiveIntensity: 0.1,
+            transparent: true, opacity: 0.04, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
+        });
+
+        const bronchiMat = new THREE.MeshStandardMaterial({ color: 0x2a0808, emissive: 0x110000, emissiveIntensity: 0.1, roughness: 0.7 }); 
+        const arteryMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 0.4, roughness: 0.4 });  
+        const veinMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, emissive: 0x3b82f6, emissiveIntensity: 0.4, roughness: 0.4 });    
+        const alveoliMat = new THREE.MeshStandardMaterial({ color: 0xffaaaa, emissive: 0xff4d4d, emissiveIntensity: 0.4, roughness: 0.6 }); 
+
+        function buildFractalTree(startX, startY, startZ, angleZ, angleX, scale, depth, isVesselType) {
+            if (depth === 0) {
+                if(isVesselType === 0) { 
+                    for(let i=0; i<6; i++) {
+                        const alveoli = new THREE.Mesh(new THREE.SphereGeometry(0.12 * scale, 8, 8), alveoliMat);
+                        alveoli.position.set(startX + (Math.random()-0.5)*0.3*scale, startY + (Math.random()-0.5)*0.3*scale, startZ + (Math.random()-0.5)*0.3*scale);
+                        systemGroup.add(alveoli);
+                    }
+                }
+                return;
+            }
+
+            const length = 1.0 * scale;
+            const endX = startX + Math.sin(angleZ) * length;
+            const endY = startY - Math.cos(angleZ) * Math.cos(angleX) * length;
+            const endZ = startZ + Math.sin(angleX) * length;
+
+            const path = new THREE.LineCurve3(new THREE.Vector3(startX, startY, startZ), new THREE.Vector3(endX, endY, endZ));
+            
+            let thickness = 0.12 * scale; let mat = bronchiMat;
+            if (isVesselType === 1) { thickness = 0.07 * scale; mat = arteryMat; } 
+            if (isVesselType === 2) { thickness = 0.06 * scale; mat = veinMat; }   
+
+            const branch = new THREE.Mesh(new THREE.TubeGeometry(path, 4, thickness, 8, false), mat);
+            if(isVesselType > 0) bloodGroup.add(branch); else systemGroup.add(branch);
+
+            buildFractalTree(endX, endY, endZ, angleZ + 0.5, angleX + 0.2, scale * 0.75, depth - 1, isVesselType);
+            buildFractalTree(endX, endY, endZ, angleZ - 0.4, angleX - 0.2, scale * 0.75, depth - 1, isVesselType);
+            if(Math.random() > 0.3 && depth > 1) buildFractalTree(endX, endY, endZ, angleZ + (Math.random()-0.5), angleX + 0.6, scale * 0.6, depth - 1, isVesselType);
+        }
+
+        // --- Mouth / Oral Cavity ---
+        const mouthGeo = new THREE.SphereGeometry(0.5, 32, 16);
+        const mouthMat = new THREE.MeshStandardMaterial({color: 0x551111, transparent:true, opacity:0.95});
+        const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+        mouth.scale.set(1.4, 0.6, 1.2); 
+        mouth.position.set(0, 6.0, 0.6); // Slightly forward and higher
+        mouth.rotation.x = Math.PI / 8;
+        systemGroup.add(mouth);
+
+        // --- Pharynx and Trachea ---
+        const pharynx = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 32), new THREE.MeshStandardMaterial({color: 0x441111, transparent:true, opacity:0.95}));
+        pharynx.position.set(0, 5.0, 0); pharynx.scale.set(1, 1.5, 1); systemGroup.add(pharynx);
+
+        const tracheaCanvas = document.createElement('canvas'); tracheaCanvas.width = 64; tracheaCanvas.height = 256; const tCtx = tracheaCanvas.getContext('2d');
+        tCtx.fillStyle = '#441111'; tCtx.fillRect(0,0,64,256); tCtx.fillStyle = '#110000'; for(let i=0; i<256; i+=16) tCtx.fillRect(0, i, 64, 4); 
+        const tracheaTex = new THREE.CanvasTexture(tracheaCanvas); tracheaTex.wrapS = THREE.RepeatWrapping; tracheaTex.wrapT = THREE.RepeatWrapping; tracheaTex.repeat.set(1, 10);
+        
+        const trachea = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 3.5, 32), new THREE.MeshStandardMaterial({ map: tracheaTex, roughness: 0.9, transparent:true, opacity:0.95 }));
+        trachea.position.set(0, 3.0, 0); systemGroup.add(trachea);
+
+        // Build Trees (shifted slightly down to accommodate the mouth)
+        buildFractalTree(0, 1.3, 0, Math.PI/3, 0.1, 1, 4, 0); 
+        buildFractalTree(0, 1.3, 0, -Math.PI/3.5, -0.1, 1, 4, 0); 
+        buildFractalTree(0, 1.2, 0.1, Math.PI/3.2, 0.2, 1, 4, 1); 
+        buildFractalTree(0, 1.2, 0.1, -Math.PI/3.7, 0, 1, 4, 1); 
+        buildFractalTree(0, 1.1, -0.1, Math.PI/2.8, -0.1, 1, 4, 2); 
+        buildFractalTree(0, 1.1, -0.1, -Math.PI/3.2, -0.2, 1, 4, 2); 
+
+        // --- Procedural Glowing Lobe Deformations ---
+        function createLungLobe(isLeft) {
+            const geo = new THREE.SphereGeometry(1.6, 64, 64); const pos = geo.attributes.position;
+            for(let i=0; i<pos.count; i++) {
+                let v = new THREE.Vector3().fromBufferAttribute(pos, i);
+                
+                // Taper the top of the lung
+                if(v.y > 0) v.x *= (1.0 - (v.y * 0.3)); 
+                
+                // THE FIX: Changed the '-' to a '+' and adjusted the multiplier to 0.7
+                // This correctly squashes the base downwards to cover the full bronchial tree.
+                if(v.y < -0.5) v.y = -0.5 + ((v.y + 0.5) * 0.7); 
+                
+                // Create the Cardiac Notch on the anatomical left lung
+                if (isLeft && v.x < 0 && v.y > -0.5 && v.y < 0.5 && v.z > 0) v.x += 0.5 * Math.cos(v.y * Math.PI); 
+                
+                pos.setXYZ(i, v.x, v.y, v.z);
+            }
+            geo.computeVertexNormals(); return new THREE.Mesh(geo, glowingLungMat);
+        }
+
+        const rightLobe = createLungLobe(false); rightLobe.position.set(-1.6, -0.3, 0); rightLobe.scale.set(1, 1.5, 1.1); lungGroup.add(rightLobe);
+        const leftLobe = createLungLobe(true); leftLobe.position.set(1.6, -0.4, 0); leftLobe.scale.set(1, 1.5, 1.1); lungGroup.add(leftLobe);
+        
+        systemGroup.add(lungGroup);
+
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 3.5, 10, 32, 1, true), bodyShellMat);
+        torso.scale.set(1, 1, 0.6); torso.position.set(0, 0.5, 0); systemGroup.add(torso);
+        systemGroup.add(bloodGroup);
+
+        // --- Airflow Particles ---
+        particleGeo = new THREE.BufferGeometry();
+        const pCount = 600; const pPos = new Float32Array(pCount * 3); const pSpeed = new Float32Array(pCount);
+        for(let i=0; i<pCount; i++) {
+            pPos[i*3] = (Math.random()-0.5)*0.6; pPos[i*3+1] = Math.random()*8 - 2.5; pPos[i*3+2] = (Math.random()-0.5)*0.6;
+            pSpeed[i] = Math.random()*0.07 + 0.03;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        particleGeo.setAttribute('speed', new THREE.BufferAttribute(pSpeed, 1));
+        
+        const canvas = document.createElement('canvas'); canvas.width=32; canvas.height=32; const context = canvas.getContext('2d');
+        const gradient = context.createRadialGradient(16,16,0, 16,16,16);
+        gradient.addColorStop(0, 'rgba(255,255,255,1)'); gradient.addColorStop(0.3, 'rgba(255,255,255,0.8)'); gradient.addColorStop(1, 'rgba(255,255,255,0)');
+        context.fillStyle = gradient; context.fillRect(0,0,32,32);
+        
+        particleSystem = new THREE.Points(particleGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, map: new THREE.CanvasTexture(canvas), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+        systemGroup.add(particleSystem);
+
+        systemGroup.position.y = -1.0;
+        threeScene.add(systemGroup);
+
+        // --- 7. SVG Connector Lines initialization ---
+        const svgNamespace = "http://www.w3.org/2000/svg";
+        const svgContainer = document.getElementById('connector-svg');
+        const labels = document.querySelectorAll('.hud-label');
+        connectorLines = [];
+
+        labels.forEach(lbl => {
+            const line = document.createElementNS(svgNamespace, 'line');
+            line.setAttribute('stroke', 'rgba(255, 77, 77, 0.8)'); 
+            line.setAttribute('stroke-width', '1.5');
+            svgContainer.appendChild(line);
+            
+            const anchor = new THREE.Vector3(parseFloat(lbl.dataset.x), parseFloat(lbl.dataset.y), parseFloat(lbl.dataset.z));
+            connectorLines.push({ element: line, label: lbl, anchor: anchor });
+        });
+
+        // --- Interaction Physics ---
+        let isDragging = false; let prevMouse = {x: 0, y: 0}; let initialPinchDistance = null;
+        function handleZoom(delta) { threeCamera.position.z += delta; if (threeCamera.position.z < 5) threeCamera.position.z = 5; if (threeCamera.position.z > 20) threeCamera.position.z = 20; }
+        container.addEventListener('mousedown', (e) => { isDragging=true; prevMouse={x:e.clientX, y:e.clientY}; });
+        container.addEventListener('mousemove', (e) => { if(isDragging) { systemGroup.rotation.y += (e.clientX - prevMouse.x)*0.01; systemGroup.rotation.x += (e.clientY - prevMouse.y)*0.01; } prevMouse = {x:e.clientX, y:e.clientY}; });
+        container.addEventListener('mouseup', () => isDragging=false); container.addEventListener('mouseleave', () => isDragging=false);
+        container.addEventListener('wheel', (e) => { e.preventDefault(); handleZoom(e.deltaY * 0.01); }, { passive: false });
+        container.addEventListener('touchstart', (e) => { if (e.touches.length === 1) { isDragging = true; prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) { isDragging = false; initialPinchDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); } }, { passive: false });
+        container.addEventListener('touchmove', (e) => { e.preventDefault(); if (e.touches.length === 1 && isDragging) { systemGroup.rotation.y += (e.touches[0].clientX - prevMouse.x) * 0.01; systemGroup.rotation.x += (e.touches[0].clientY - prevMouse.y) * 0.01; prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2 && initialPinchDistance !== null) { const currentDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); handleZoom((initialPinchDistance - currentDist) * 0.05); initialPinchDistance = currentDist; } }, { passive: false });
+        container.addEventListener('touchend', (e) => { if(e.touches.length < 2) initialPinchDistance = null; if(e.touches.length === 0) isDragging = false; });
+        window.addEventListener('resize', () => { if (document.getElementById("interactive-3d-overlay").style.display === "flex") { threeCamera.aspect = container.clientWidth / container.clientHeight; threeCamera.updateProjectionMatrix(); threeRenderer.setSize(container.clientWidth, container.clientHeight); } });
+
+        is3DInitialized = true;
+    }
+
+    function animate3D() {
+        animationId = requestAnimationFrame(animate3D);
+        const time = Date.now() * 0.0015; 
+        
+        if(systemGroup) {
+            systemGroup.updateMatrixWorld(true);
+            
+            lungGroup.scale.set(1 + Math.sin(time*0.8)*0.03, 1 + Math.sin(time*0.8)*0.02, 1 + Math.sin(time*0.8)*0.04);
+            
+            // --- PARTICLE FLOW (Through Mouth) ---
+            const positions = particleGeo.attributes.position.array;
+            const speeds = particleGeo.attributes.speed.array;
+            const isExhaling = Math.cos(time*0.8) < 0;
+            particleSystem.material.color.setHex(isExhaling ? 0x880000 : 0xffffff);
+
+            for(let i=0; i<600; i++) {
+                let yPos = positions[i*3+1];
+                
+                if(isExhaling) { 
+                    yPos += speeds[i]; 
+                    if(yPos > 6.4) {
+                        yPos = -2.5; // Reset to bottom of lungs
+                        positions[i*3] = (Math.random()-0.5)*2.5; 
+                        positions[i*3+2] = (Math.random()-0.5)*2.5; 
+                    }
+                } else { 
+                    yPos -= speeds[i]; 
+                    if(yPos < -2.5) {
+                        yPos = 6.4; // Reset to mouth
+                        positions[i*3] = (Math.random()-0.5)*0.3; // Narrow X
+                        positions[i*3+2] = 0.6 + (Math.random()-0.5)*0.2; // Starting at mouth Z
+                    }
+                }
+                
+                // Physics pull
+                if(yPos > 5.0) {
+                    // Pull particles sharply towards the mouth (Z = 0.6)
+                    positions[i*3] += (0 - positions[i*3]) * 0.15;
+                    positions[i*3+2] += (0.6 - positions[i*3+2]) * 0.15;
+                } else if(yPos < 1.5) {
+                    // Spread rapidly in lungs
+                    positions[i*3] += (Math.random()-0.5) * 0.1;
+                    positions[i*3+2] += (Math.random()-0.5) * 0.1;
+                } else {
+                    // Stay tightly in Trachea
+                    positions[i*3] += (0 - positions[i*3]) * 0.15;
+                    positions[i*3+2] += (0 - positions[i*3+2]) * 0.15;
+                }
+                positions[i*3+1] = yPos;
+            }
+            particleGeo.attributes.position.needsUpdate = true;
+
+            const containerEl = document.getElementById('threejs-canvas-container');
+            const cw = containerEl.clientWidth; const ch = containerEl.clientHeight; const containerRect = containerEl.getBoundingClientRect();
+
+            connectorLines.forEach(lineData => {
+                const pos = lineData.anchor.clone();
+                pos.applyMatrix4(systemGroup.matrixWorld); pos.project(threeCamera);
+                const x2 = (pos.x * .5 + .5) * cw; const y2 = (pos.y * -.5 + .5) * ch;
+                const rect = lineData.label.getBoundingClientRect();
+                const x1 = rect.left - containerRect.left + (rect.width / 2); const y1 = rect.top - containerRect.top + (rect.height / 2);
+                lineData.element.setAttribute('x1', x1); lineData.element.setAttribute('y1', y1); lineData.element.setAttribute('x2', x2); lineData.element.setAttribute('y2', y2);
+                if (pos.z > 1) { lineData.element.style.display = 'none'; } else { lineData.element.style.display = 'block'; }
+            });
+        }
+        threeRenderer.render(threeScene, threeCamera);
+    }
+
+    function open3DModel() {
+        document.getElementById("interactive-3d-overlay").style.display = "flex";
+        if (!is3DInitialized) initThreeJS();
+        const container = document.getElementById('threejs-canvas-container');
+        threeCamera.aspect = container.clientWidth / container.clientHeight; threeCamera.updateProjectionMatrix(); threeRenderer.setSize(container.clientWidth, container.clientHeight);
+        animate3D();
+    }
+
+    function close3DModel() { document.getElementById("interactive-3d-overlay").style.display = "none"; cancelAnimationFrame(animationId); }
+
+    const anatomyLabelInfo = {
+        'oral-cavity': {
+            title: 'Oral Cavity',
+            image: 'oral-cavity.png',
+            description: 'This is the first entry point for air into the respiratory system. It works together with the nasal cavity to channel air into the throat.'
+        },
+        'nasal-pharynx': {
+            title: 'Nasal Cavity & Pharynx',
+            image: 'nasal-pharynx.png',
+            description: 'The nasal cavity warms and filters air, while the pharynx acts as a shared passageway for both air and food.'
+        },
+        'larynx-trachea': {
+            title: 'Larynx and Trachea',
+            image: 'larynx-trachea.png',
+            description: 'The larynx protects the airway and houses the vocal cords. The trachea carries filtered air down into the lungs.'
+        },
+        'lobe-segments': {
+            title: 'Lobe Segments',
+            image: 'lobe-segments.png',
+            description: 'Each lung is divided into lobes and segments to allow efficient airflow and gas exchange across many regions.'
+        },
+        'vascular-tree': {
+            title: 'Pulmonary Vascular Tree',
+            image: 'vascular-tree.png',
+            description: 'Pulmonary arteries and veins transport oxygen-poor blood to the lungs and oxygen-rich blood back to the heart.'
+        },
+        'bronchial-tree': {
+            title: 'Bronchial Tree',
+            image: 'bronchial-tree.png',
+            description: 'The bronchial tree branches repeatedly into smaller airways that deliver air deep into the lung tissue.'
+        },
+        'alveoli-sac': {
+            title: 'Alveoli Sac Clusters',
+            image: 'alveoli-sac.png',
+            description: 'These tiny air sacs are where oxygen enters the blood and carbon dioxide leaves it through very thin walls.'
+        }
+    };
+
+    function openAnatomyInfo(key) {
+        const info = anatomyLabelInfo[key];
+        if (!info) return;
+
+        document.getElementById('anatomy-image-title').innerText = info.title;
+        const imageNode = document.getElementById('anatomy-image-display');
+        imageNode.src = info.image;
+        imageNode.alt = info.title;
+        document.getElementById('anatomy-image-desc').innerText = info.description;
+
+        document.getElementById('anatomy-image-modal').classList.remove('hidden');
+    }
+
+    function closeAnatomyImage() {
+        document.getElementById('anatomy-image-modal').classList.add('hidden');
+    }
+
+    let bloodVisible = true;
+    function toggleBloodVessels() {
+        bloodVisible = !bloodVisible; bloodGroup.visible = bloodVisible;
+        const btn = document.getElementById("btn-toggle-blood"); bloodVisible ? btn.classList.add("active") : btn.classList.remove("active");
+    }
+
+    // --- LEARN PAGE: BREATHING SIMULATOR ---
+        let isLungsExpanded = false;
+
+        function triggerLearnBreath() {
+            const leftLung = document.getElementById('anim-lung-left');
+            const rightLung = document.getElementById('anim-lung-right');
+            const btn = document.getElementById('learn-breathe-btn');
+
+            isLungsExpanded = !isLungsExpanded;
+
+            if (isLungsExpanded) {
+                // Inhale State
+                leftLung.classList.add('lung-expanded');
+                rightLung.classList.add('lung-expanded');
+                
+                btn.innerHTML = '<i class="fa-solid fa-compress" style="margin-right: 8px;"></i> Exhale CO2';
+                btn.style.backgroundColor = "var(--brand-red)";
+                btn.style.boxShadow = "0 4px 15px rgba(255, 77, 77, 0.3)";
+            } else {
+                // Exhale State
+                leftLung.classList.remove('lung-expanded');
+                rightLung.classList.remove('lung-expanded');
+                
+                btn.innerHTML = '<i class="fa-solid fa-wind" style="margin-right: 8px;"></i> Inhale Oxygen';
+                btn.style.backgroundColor = "var(--brand-green)";
+                btn.style.boxShadow = "0 4px 15px rgba(34, 197, 94, 0.3)";
+            }
+        }
+
+</script>
+</body>
+</html>
